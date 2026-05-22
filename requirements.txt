@@ -1,0 +1,33 @@
+# ── Core pipeline ─────────────────────────────────────────────────────────────
+mcp>=1.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+scipy>=1.11.0
+pyyaml>=6.0.0
+
+# ── LLM Providers ─────────────────────────────────────────────────────────────
+ollama>=0.1.8               # Local, offline — default provider
+
+# Cloud providers (install only what you use):
+# pip install openai                  # OpenAI GPT-4o, GPT-4o-mini
+# pip install google-generativeai     # Google Gemini
+# requests is already installed       # HuggingFace Inference API
+
+# ── FastAPI backend ───────────────────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn>=0.27.0
+python-multipart>=0.0.9
+aiofiles>=23.0.0
+reportlab>=4.0.0
+
+# ── Dashboard ( Flask) ──────────────────────────────────────────────────
+flask>=3.0.0
+
+# ── Notebook & visualisation ──────────────────────────────────────────────────
+jupyter>=1.0.0
+matplotlib>=3.7.0
+nbformat>=5.9.0
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+pymysql>=1.1.0

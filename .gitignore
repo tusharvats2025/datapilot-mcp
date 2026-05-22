@@ -1,0 +1,12 @@
+pyvenv.cfg
+__pycache__/
+*.pyc
+*.pyo
+.env
+.dnv/
+.env.local
+/tmp/
+*.db
+*.pickle
+node_modules/
+.next/

@@ -1,0 +1,29 @@
+# DataPilot Configuration
+# ========================
+# Change provider and model here — all agents + MCP server + API pick this up.
+
+
+llm:
+  # Provider options: ollama | openai | gemini | huggingface | mock
+  provider: ollama
+
+  # Ollama (local, offline, free)
+  ollama_model: phi3:mini
+
+  # OpenAI (requires OPENAI_API_KEY env var)
+  openai_model: gpt-4o-mini        # gpt-4o-mini · gpt-4o · gpt-3.5-turbo
+
+  # Google Gemini (requires GEMINI_API_KEY env var)
+  gemini_model: gemini-1.5-flash   # gemini-1.5-flash · gemini-1.5-pro
+
+  # Hugging Face Inference API (requires HF_API_KEY env var)
+  hf_model: mistralai/Mistral-7B-Instruct-v0.2
+
+  # mock — deterministic responses, no LLM needed (for testing/CI)
+  # Set provider: mock to use this
+
+pipeline:
+  drop_threshold: 0.7
+  correlation_threshold: 0.95
+  outlier_action: clip             # flag · clip · drop
+  use_cdp: true                    # true = CDP-structured prompts, false = baseline
