@@ -1,0 +1,15 @@
+agent_name,prompt_strategy,avg_latency_ms,avg_quality_score,silent_failure_rate,backtrack_rate,avg_tokens_in,avg_tokens_out,call_count
+feature_engineer,baseline,363.796,3.0,0.0,0.0,82.0,13.0,5
+feature_engineer,cdp,307.19,3.3,0.0,0.0,449.0,121.0,5
+feature_selector,baseline,216.982,3.0,0.0,0.0,61.0,13.0,5
+feature_selector,cdp,247.47,3.6,0.0,0.0,388.0,90.0,5
+missing_strategy,baseline,276.624,3.5,0.0,0.0,29.0,13.0,5
+missing_strategy,cdp,274.872,4.5,0.0,0.0,408.0,49.0,5
+outlier_analyst,baseline,306.832,3.5,0.0,0.0,62.0,14.0,5
+outlier_analyst,cdp,251.146,4.1,0.0,0.0,376.0,65.0,5
+pipeline_validator,baseline,275.58,3.0,0.0,0.0,54.0,8.0,5
+pipeline_validator,cdp,243.864,3.9,0.0,0.0,487.0,38.0,5
+quality_auditor,baseline,361.966,3.0,0.0,0.0,137.0,20.0,5
+quality_auditor,cdp,362.194,4.1,0.0,0.0,446.0,96.0,5
+type_inference,baseline,197.742,3.0,0.0,0.0,251.0,17.0,5
+type_inference,cdp,320.766,3.6,0.0,0.0,573.0,113.0,5

@@ -1,0 +1,8 @@
+agent_name,avg_quality_score_baseline,avg_quality_score_cdp,silent_failure_rate_baseline,silent_failure_rate_cdp,avg_latency_ms_baseline,avg_latency_ms_cdp,backtrack_rate_baseline,backtrack_rate_cdp,avg_quality_score_delta,silent_failure_rate_delta,avg_latency_ms_delta
+feature_engineer,3.0,3.3,0.0,0.0,363.796,307.19,0.0,0.0,0.3,0.0,-56.606
+feature_selector,3.0,3.6,0.0,0.0,216.982,247.47,0.0,0.0,0.6,0.0,30.488
+missing_strategy,3.5,4.5,0.0,0.0,276.624,274.872,0.0,0.0,1.0,0.0,-1.752
+outlier_analyst,3.5,4.1,0.0,0.0,306.832,251.146,0.0,0.0,0.6,0.0,-55.686
+pipeline_validator,3.0,3.9,0.0,0.0,275.58,243.864,0.0,0.0,0.9,0.0,-31.716
+quality_auditor,3.0,4.1,0.0,0.0,361.966,362.194,0.0,0.0,1.1,0.0,0.228
+type_inference,3.0,3.6,0.0,0.0,197.742,320.766,0.0,0.0,0.6,0.0,123.024

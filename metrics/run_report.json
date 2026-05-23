@@ -1,0 +1,180 @@
+{
+  "generated_at": "2026-03-29T19:22:15.382463",
+  "model": "mock",
+  "n_runs": 1,
+  "total_calls": 70,
+  "agents_tested": [
+    "quality_auditor",
+    "type_inference",
+    "missing_strategy",
+    "outlier_analyst",
+    "feature_engineer",
+    "feature_selector",
+    "pipeline_validator"
+  ],
+  "overall": {
+    "avg_quality_baseline": 3.143,
+    "avg_quality_cdp": 3.871,
+    "silent_failure_baseline": 0.0,
+    "silent_failure_cdp": 0.0,
+    "avg_latency_baseline": 285.6,
+    "avg_latency_cdp": 286.8,
+    "backtrack_rate_cdp": 0.0
+  },
+  "summary_table": [
+    {
+      "agent_name": "feature_engineer",
+      "prompt_strategy": "baseline",
+      "avg_latency_ms": 363.796,
+      "avg_quality_score": 3.0,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 82.0,
+      "avg_tokens_out": 13.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "feature_engineer",
+      "prompt_strategy": "cdp",
+      "avg_latency_ms": 307.19,
+      "avg_quality_score": 3.3,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 449.0,
+      "avg_tokens_out": 121.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "feature_selector",
+      "prompt_strategy": "baseline",
+      "avg_latency_ms": 216.982,
+      "avg_quality_score": 3.0,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 61.0,
+      "avg_tokens_out": 13.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "feature_selector",
+      "prompt_strategy": "cdp",
+      "avg_latency_ms": 247.47,
+      "avg_quality_score": 3.6,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 388.0,
+      "avg_tokens_out": 90.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "missing_strategy",
+      "prompt_strategy": "baseline",
+      "avg_latency_ms": 276.624,
+      "avg_quality_score": 3.5,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 29.0,
+      "avg_tokens_out": 13.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "missing_strategy",
+      "prompt_strategy": "cdp",
+      "avg_latency_ms": 274.872,
+      "avg_quality_score": 4.5,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 408.0,
+      "avg_tokens_out": 49.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "outlier_analyst",
+      "prompt_strategy": "baseline",
+      "avg_latency_ms": 306.832,
+      "avg_quality_score": 3.5,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 62.0,
+      "avg_tokens_out": 14.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "outlier_analyst",
+      "prompt_strategy": "cdp",
+      "avg_latency_ms": 251.146,
+      "avg_quality_score": 4.1,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 376.0,
+      "avg_tokens_out": 65.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "pipeline_validator",
+      "prompt_strategy": "baseline",
+      "avg_latency_ms": 275.58,
+      "avg_quality_score": 3.0,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 54.0,
+      "avg_tokens_out": 8.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "pipeline_validator",
+      "prompt_strategy": "cdp",
+      "avg_latency_ms": 243.864,
+      "avg_quality_score": 3.9,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 487.0,
+      "avg_tokens_out": 38.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "quality_auditor",
+      "prompt_strategy": "baseline",
+      "avg_latency_ms": 361.966,
+      "avg_quality_score": 3.0,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 137.0,
+      "avg_tokens_out": 20.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "quality_auditor",
+      "prompt_strategy": "cdp",
+      "avg_latency_ms": 362.194,
+      "avg_quality_score": 4.1,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 446.0,
+      "avg_tokens_out": 96.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "type_inference",
+      "prompt_strategy": "baseline",
+      "avg_latency_ms": 197.742,
+      "avg_quality_score": 3.0,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 251.0,
+      "avg_tokens_out": 17.0,
+      "call_count": 5
+    },
+    {
+      "agent_name": "type_inference",
+      "prompt_strategy": "cdp",
+      "avg_latency_ms": 320.766,
+      "avg_quality_score": 3.6,
+      "silent_failure_rate": 0.0,
+      "backtrack_rate": 0.0,
+      "avg_tokens_in": 573.0,
+      "avg_tokens_out": 113.0,
+      "call_count": 5
+    }
+  ]
+}

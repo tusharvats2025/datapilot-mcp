@@ -1,0 +1,966 @@
+run_id,timestamp,prompt_strategy,agent_name,prompt_text,output_text,latency_ms,token_estimate_in,token_estimate_out,quality_score,silent_failure,backtrack_triggered,rule_llm_agree,error
+run_a20959,2026-03-16T10:12:36.004468,baseline,quality_auditor,"
+You are a data quality agent.
+Given this dataset summary: {""rows"": 520, ""columns"": 11, ""column_names"": [""age"", ""salary"", ""bonus"", ""department"", ""dept_code"", ""hire_date"", ""employee_id"", ""notes"", ""promoted"", ""constant_col"", ""mystery_col""], ""null_pct"": {""age"": 5.96, ""salary"": 0.0, ""bonus"": 43.27, ""department"": 5.19, ""dept_code"": 6.35, ""hire_date"": 0.0, ""employee_id"": 0.0, ""notes"": 16.35, ""promoted"": 0.0, ""constant_col"": 0.0, ""mystery_col"": 88.27}, ""duplicate_rows"": 20}
+Check for missing values, duplicates, and data issues.
+Report what you find.
+","{""null_counts"": {""salary"": 12}, ""quality"": ""FAIR"", ""summary"": ""Some nulls found.""}",376.92,137,20,3.0,0,0,,
+run_a20959,2026-03-16T10:12:36.368493,cdp,quality_auditor,"
+## CDP STEP: data_quality_audit
+
+### CONTEXT
+You are auditing a raw dataset before ML preprocessing.
+Silent failures in this step cascade into all downstream agents.
+A ""clean-looking"" dataset with hidden issues is MORE dangerous than an obvious error.
+
+### GUARANTEES (developer-asserted — trust these)
+- The dataset has already been loaded and is in tabular form.
+- Row count and column names are accurate.
+
+### CONTRACT
+You must produce a structured audit covering:
+1. Null counts and null % per column
+2. Duplicate row count
+3. Zero-variance or near-constant columns
+4. Columns with >50% missing (flag for potential drop)
+5. An overall quality rating: GOOD | FAIR | POOR
+6. A plain-English risk summary (2–3 sentences)
+
+### CONSTRAINTS
+- Do NOT impute or modify data in this step — audit only.
+- ","{""null_counts"": {""salary"": 12, ""bonus"": 225}, ""null_pct"": {""bonus"": 45.0}, ""duplicate_rows"": 20, ""zero_variance_cols"": [""constant_col""], ""high_null_cols"": [""mystery_col""], ""quality_rating"": ""FAIR"", ""risk_summary"": ""Two columns have significant null rates. One column is near-constant and should be dropped. Duplicate rows detected — deduplicate before modelling."", ""backtrack"": false}",362.41,446,96,4.1,0,0,,
+run_a20959,2026-03-16T10:12:36.561757,baseline,type_inference,"
+You are a data type inference agent.
+Given these columns and sample values: {""age"": [56.0, 69.0, 46.0, 32.0, 60.0], ""salary"": [75861.35263293564, 60770.41289219453, 73086.70736490679, 75992.97816146608, 45614.87855359832], ""bonus"": [3624.9130973208175, 4620.011225635241, 5896.780587231723, 5018.583505061825, 5278.685187242529], ""department"": [""Engineering"", ""Engineering"", ""Engineering"", ""Engineering"", ""Engineering""], ""dept_code"": [""HR"", ""HR"", ""ENG"", ""HR"", ""HR""], ""hire_date"": [""2015-01-01"", ""2015-01-02"", ""2015-01-03"", ""2015-01-04"", ""2015-01-05""], ""employee_id"": [""EMP00000"", ""EMP00001"", ""EMP00002"", ""EMP00003"", ""EMP00004""], ""notes"": [""Needs improvement"", ""Needs improvement"", ""Good performer"", ""Good performer"", ""Needs improvement""], ""promoted"": [0, 1, 1, 0, 1], ""constant_col"": [1.0, 1.0, 1.0,","{""age"": ""numeric"", ""salary"": ""numeric"", ""department"": ""categorical""}",191.7,251,17,3.0,0,0,,
+run_a20959,2026-03-16T10:12:36.945369,cdp,type_inference,"
+## CDP STEP: type_inference
+
+### CONTEXT
+Correct semantic typing is the foundation of every downstream decision.
+A datetime column typed as text will not be decomposed.
+A categorical column typed as numeric will be scaled instead of encoded.
+These are silent failures — the pipeline continues but produces wrong features.
+
+### GUARANTEES
+- Column names and up to 10 sample values per column are provided.
+- The dataset passed quality audit (no backtrack was triggered).
+
+### CONTRACT
+For each column, declare:
+1. pandas_dtype: the current raw dtype
+2. semantic_type: one of [numeric | categorical | datetime | text | id | boolean]
+3. recommended_cast: the pandas dtype to cast to
+4. risk_note: any concern about misclassification (or ""none"")
+
+### CONSTRAINTS
+- A column with >95% unique values is an","{""age"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""none""}, ""salary"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""outliers detected in sample""}, ""department"": {""semantic_type"": ""categorical"", ""recommended_cast"": ""category"", ""risk_note"": ""none""}, ""employee_id"": {""semantic_type"": ""id"", ""recommended_cast"": ""object"", ""risk_note"": ""High cardinality — exclude from modelling""}, ""backtrack"": false}",382.49,573,113,3.6,0,0,,
+run_a20959,2026-03-16T10:12:37.231819,baseline,missing_strategy,"
+You are a data cleaning agent.
+Column: ""salary"", type: ""numeric"", missing: 0%.
+What imputation strategy should I use?
+","{""strategy"": ""mean"", ""justification"": ""It is numeric.""}",285.13,29,13,3.5,0,0,,
+run_a20959,2026-03-16T10:12:37.495756,cdp,missing_strategy,"
+## CDP STEP: missing_value_treatment
+
+### CONTEXT
+Missing value imputation is the most common source of silent ML failures.
+The wrong strategy distorts distributions, inflates correlations, or leaks information.
+Specific rules apply:
+- Mean imputation on skewed distributions inflates central tendency.
+- Mean/median on fraud/anomaly targets distorts the minority class signal.
+- Mode imputation on high-cardinality text columns is meaningless.
+- Columns >70% missing should be dropped, not imputed.
+
+### GUARANTEES
+- Column semantic type has been confirmed by the type inference step.
+- The missing percentage provided is accurate.
+
+### CONTRACT
+Declare the imputation strategy for this column and justify it.
+Valid strategies: mean | median | mode | constant | knn_flag | drop
+
+### CONSTRAINTS
+- N","{""strategy"": ""median"", ""justification"": ""Numeric column — median is robust to the salary outliers present. Mean would be skewed by the $500k outlier values."", ""backtrack"": false, ""risk_level"": ""low""}",262.17,408,49,4.5,0,0,,
+run_a20959,2026-03-16T10:12:37.808267,baseline,outlier_analyst,"
+You are an outlier detection agent.
+Column: ""salary"", values: {'mean': np.float64(70824.8249819922), 'std': np.float64(88861.37325708602), 'min': np.float64(-10000.0), 'max': np.float64(999999.0)}
+Identify outliers and suggest how to handle them.
+","{""action"": ""clip"", ""justification"": ""Some outliers found.""}",311.15,62,14,3.5,0,0,,
+run_a20959,2026-03-16T10:12:38.011768,cdp,outlier_analyst,"
+## CDP STEP: outlier_detection
+
+### CONTEXT
+Outlier handling has model-specific implications:
+- Tree-based models (RF, XGBoost) are robust to outliers — clipping may destroy signal.
+- Linear models (LR, SVM) are sensitive — outliers must be handled.
+- Fraud/anomaly datasets: outliers ARE the signal — never drop them blindly.
+- Always check if extreme values are domain-valid (e.g., salary of $500k is real).
+
+### GUARANTEES
+- Missing values have been handled in the previous step.
+- Column is numeric (type inference confirmed this).
+
+### CONTRACT
+1. Identify outlier boundaries using IQR (Q1 - 1.5×IQR, Q3 + 1.5×IQR)
+2. Count outlier rows and calculate percentage
+3. Recommend action: flag | clip | drop | keep_as_signal
+4. Justify the recommendation with domain reasoning
+
+### CONSTRAINTS
+- Do N","{""lower_bound"": 5000, ""upper_bound"": 115000, ""outlier_count"": 15, ""outlier_pct"": 2.9, ""recommended_action"": ""clip"", ""justification"": ""Outliers are 2.9% of data — clipping preserves distribution without data loss. No fraud context detected."", ""backtrack"": false}",201.92,376,65,4.1,0,0,,
+run_a20959,2026-03-16T10:12:38.374573,baseline,feature_engineer,"
+You are a feature engineering agent.
+Dataset columns: {'age': 'float64', 'salary': 'float64', 'bonus': 'float64', 'department': 'str', 'dept_code': 'str', 'hire_date': 'str', 'employee_id': 'str', 'notes': 'str', 'promoted': 'int64', 'constant_col': 'float64', 'mystery_col': 'float64'}
+Suggest useful new features I can create.
+","[{""feature"": ""hire_date_year"", ""transform"": ""dt.year""}]",361.6,82,13,3.0,0,0,,
+run_a20959,2026-03-16T10:12:38.695798,cdp,feature_engineer,"
+## CDP STEP: feature_engineering
+
+### CONTEXT
+Feature engineering transforms raw columns into model-ready signals.
+Common ML mistakes in this step:
+- One-hot encoding high-cardinality columns (>50 unique values) explodes feature space.
+- Applying log transforms to columns containing zeros causes -inf values.
+- Creating interaction terms without normalisation introduces scale bias.
+- datetime decomposition without timezone awareness creates ghost features.
+
+### GUARANTEES
+- Outliers have been handled.
+- Column types have been cast correctly.
+- Missing values are resolved.
+
+### CONTRACT
+For each column, propose 0–3 engineered features.
+For each proposal:
+1. feature_name: name of the new feature
+2. transformation: exact operation (e.g., log1p, dt.month, label_encode)
+3. prerequisite_check: w","[{""col_name"": ""hire_date"", ""feature_name"": ""hire_date_year"", ""transformation"": ""dt.year"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""hire_date"", ""feature_name"": ""hire_date_is_weekend"", ""transformation"": ""dt.dayofweek >= 5"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""department"", ""feature_name"": ""department_encoded"", ""transformation"": ""label_encode"", ""prerequisite_check"": ""cardinality < 50"", ""risk"": ""none""}]",319.78,449,121,3.3,0,0,,
+run_a20959,2026-03-16T10:12:38.921935,baseline,feature_selector,"
+You are a feature selection agent.
+Features available: ['age', 'salary', 'bonus', 'department', 'dept_code', 'hire_date', 'employee_id', 'notes', 'promoted', 'constant_col', 'mystery_col']
+Target variable: promoted
+Which features should I keep?
+","{""keep"": [""age"", ""salary""], ""drop"": [""constant_col""]}",224.78,61,13,3.0,0,0,,
+run_a20959,2026-03-16T10:12:39.148369,cdp,feature_selector,"
+## CDP STEP: feature_selection
+
+### CONTEXT
+Feature selection prevents overfitting and reduces noise.
+Critical ML mistakes:
+- Dropping features based on solo correlation with target misses joint information.
+- Removing features before train/test split causes leakage.
+- Keeping ID columns in model input guarantees overfitting.
+- Variance threshold removal must exclude the target column.
+
+### GUARANTEES
+- Feature engineering is complete.
+- The target column is identified and must be preserved.
+- No train/test split has been applied yet.
+
+### CONTRACT
+1. Apply variance threshold — flag columns with variance < 0.01
+2. Apply correlation filter — flag one of each pair with correlation > 0.95
+3. Flag ID columns for removal
+4. Declare final keep/drop decision per column with justification
+
+### CO","{""keep"": [""age"", ""salary"", ""department_encoded"", ""hire_date_year"", ""hire_date_month""], ""drop"": [""constant_col"", ""mystery_col"", ""employee_id"", ""dept_code""], ""flagged"": [""notes""], ""backtrack"": false, ""justification_per_col"": {""constant_col"": ""zero variance"", ""employee_id"": ""ID column — overfitting risk"", ""dept_code"": ""high correlation with department_encoded""}}",225.18,388,90,3.6,0,0,,
+run_a20959,2026-03-16T10:12:39.374169,baseline,pipeline_validator,"
+You are a pipeline validation agent.
+Pipeline steps completed: ['intake', 'quality', 'types', 'missing', 'outliers', 'features', 'selection']
+Final dataset shape: [520, 11]
+Is the pipeline ready for model training?
+","{""status"": ""PASSED"", ""issues"": []}",224.22,54,8,3.0,0,0,,
+run_a20959,2026-03-16T10:12:39.569473,cdp,pipeline_validator,"
+## CDP STEP: pipeline_validation
+
+### CONTEXT
+This is the final gate before model training.
+A pipeline that ""ran without errors"" is not necessarily correct.
+This step must actively verify correctness, not just confirm completion.
+Known failure patterns to check:
+- Residual nulls (imputation missed a column)
+- Data leakage (scaler or encoder fit on full dataset)
+- Feature count explosion (one-hot on high-cardinality col was applied)
+- Target column corrupted or missing
+- Row count dropped >40% (overly aggressive outlier removal)
+
+### GUARANTEES
+- All prior steps have been executed and their reports are available.
+- The session_id maps to a valid stored dataset.
+
+### CONTRACT
+1. Verify zero residual nulls (or explain and accept exceptions)
+2. Verify row count loss is < 40% from original
+3. ","{""status"": ""PASSED_WITH_WARNINGS"", ""backtrack"": false, ""issues"": [], ""warnings"": [""notes column flagged — low information density""], ""readiness_score"": 87}",193.68,487,38,3.9,0,0,,
+run_e98eb3,2026-03-16T10:12:39.897737,baseline,quality_auditor,"
+You are a data quality agent.
+Given this dataset summary: {""rows"": 520, ""columns"": 11, ""column_names"": [""age"", ""salary"", ""bonus"", ""department"", ""dept_code"", ""hire_date"", ""employee_id"", ""notes"", ""promoted"", ""constant_col"", ""mystery_col""], ""null_pct"": {""age"": 5.96, ""salary"": 0.0, ""bonus"": 43.27, ""department"": 5.19, ""dept_code"": 6.35, ""hire_date"": 0.0, ""employee_id"": 0.0, ""notes"": 16.35, ""promoted"": 0.0, ""constant_col"": 0.0, ""mystery_col"": 88.27}, ""duplicate_rows"": 20}
+Check for missing values, duplicates, and data issues.
+Report what you find.
+","{""null_counts"": {""salary"": 12}, ""quality"": ""FAIR"", ""summary"": ""Some nulls found.""}",321.07,137,20,3.0,0,0,,
+run_e98eb3,2026-03-16T10:12:40.280516,cdp,quality_auditor,"
+## CDP STEP: data_quality_audit
+
+### CONTEXT
+You are auditing a raw dataset before ML preprocessing.
+Silent failures in this step cascade into all downstream agents.
+A ""clean-looking"" dataset with hidden issues is MORE dangerous than an obvious error.
+
+### GUARANTEES (developer-asserted — trust these)
+- The dataset has already been loaded and is in tabular form.
+- Row count and column names are accurate.
+
+### CONTRACT
+You must produce a structured audit covering:
+1. Null counts and null % per column
+2. Duplicate row count
+3. Zero-variance or near-constant columns
+4. Columns with >50% missing (flag for potential drop)
+5. An overall quality rating: GOOD | FAIR | POOR
+6. A plain-English risk summary (2–3 sentences)
+
+### CONSTRAINTS
+- Do NOT impute or modify data in this step — audit only.
+- ","{""null_counts"": {""salary"": 12, ""bonus"": 225}, ""null_pct"": {""bonus"": 45.0}, ""duplicate_rows"": 20, ""zero_variance_cols"": [""constant_col""], ""high_null_cols"": [""mystery_col""], ""quality_rating"": ""FAIR"", ""risk_summary"": ""Two columns have significant null rates. One column is near-constant and should be dropped. Duplicate rows detected — deduplicate before modelling."", ""backtrack"": false}",381.68,446,96,4.1,0,0,,
+run_e98eb3,2026-03-16T10:12:40.466499,baseline,type_inference,"
+You are a data type inference agent.
+Given these columns and sample values: {""age"": [56.0, 69.0, 46.0, 32.0, 60.0], ""salary"": [75861.35263293564, 60770.41289219453, 73086.70736490679, 75992.97816146608, 45614.87855359832], ""bonus"": [3624.9130973208175, 4620.011225635241, 5896.780587231723, 5018.583505061825, 5278.685187242529], ""department"": [""Engineering"", ""Engineering"", ""Engineering"", ""Engineering"", ""Engineering""], ""dept_code"": [""HR"", ""HR"", ""ENG"", ""HR"", ""HR""], ""hire_date"": [""2015-01-01"", ""2015-01-02"", ""2015-01-03"", ""2015-01-04"", ""2015-01-05""], ""employee_id"": [""EMP00000"", ""EMP00001"", ""EMP00002"", ""EMP00003"", ""EMP00004""], ""notes"": [""Needs improvement"", ""Needs improvement"", ""Good performer"", ""Good performer"", ""Needs improvement""], ""promoted"": [0, 1, 1, 0, 1], ""constant_col"": [1.0, 1.0, 1.0,","{""age"": ""numeric"", ""salary"": ""numeric"", ""department"": ""categorical""}",184.2,251,17,3.0,0,0,,
+run_e98eb3,2026-03-16T10:12:40.659850,cdp,type_inference,"
+## CDP STEP: type_inference
+
+### CONTEXT
+Correct semantic typing is the foundation of every downstream decision.
+A datetime column typed as text will not be decomposed.
+A categorical column typed as numeric will be scaled instead of encoded.
+These are silent failures — the pipeline continues but produces wrong features.
+
+### GUARANTEES
+- Column names and up to 10 sample values per column are provided.
+- The dataset passed quality audit (no backtrack was triggered).
+
+### CONTRACT
+For each column, declare:
+1. pandas_dtype: the current raw dtype
+2. semantic_type: one of [numeric | categorical | datetime | text | id | boolean]
+3. recommended_cast: the pandas dtype to cast to
+4. risk_note: any concern about misclassification (or ""none"")
+
+### CONSTRAINTS
+- A column with >95% unique values is an","{""age"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""none""}, ""salary"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""outliers detected in sample""}, ""department"": {""semantic_type"": ""categorical"", ""recommended_cast"": ""category"", ""risk_note"": ""none""}, ""employee_id"": {""semantic_type"": ""id"", ""recommended_cast"": ""object"", ""risk_note"": ""High cardinality — exclude from modelling""}, ""backtrack"": false}",191.76,573,113,3.6,0,0,,
+run_e98eb3,2026-03-16T10:12:40.979087,baseline,missing_strategy,"
+You are a data cleaning agent.
+Column: ""salary"", type: ""numeric"", missing: 0%.
+What imputation strategy should I use?
+","{""strategy"": ""mean"", ""justification"": ""It is numeric.""}",317.46,29,13,3.5,0,0,,
+run_e98eb3,2026-03-16T10:12:41.357099,cdp,missing_strategy,"
+## CDP STEP: missing_value_treatment
+
+### CONTEXT
+Missing value imputation is the most common source of silent ML failures.
+The wrong strategy distorts distributions, inflates correlations, or leaks information.
+Specific rules apply:
+- Mean imputation on skewed distributions inflates central tendency.
+- Mean/median on fraud/anomaly targets distorts the minority class signal.
+- Mode imputation on high-cardinality text columns is meaningless.
+- Columns >70% missing should be dropped, not imputed.
+
+### GUARANTEES
+- Column semantic type has been confirmed by the type inference step.
+- The missing percentage provided is accurate.
+
+### CONTRACT
+Declare the imputation strategy for this column and justify it.
+Valid strategies: mean | median | mode | constant | knn_flag | drop
+
+### CONSTRAINTS
+- N","{""strategy"": ""median"", ""justification"": ""Numeric column — median is robust to the salary outliers present. Mean would be skewed by the $500k outlier values."", ""backtrack"": false, ""risk_level"": ""low""}",376.68,408,49,4.5,0,0,,
+run_e98eb3,2026-03-16T10:12:41.616727,baseline,outlier_analyst,"
+You are an outlier detection agent.
+Column: ""salary"", values: {'mean': np.float64(70824.8249819922), 'std': np.float64(88861.37325708602), 'min': np.float64(-10000.0), 'max': np.float64(999999.0)}
+Identify outliers and suggest how to handle them.
+","{""action"": ""clip"", ""justification"": ""Some outliers found.""}",258.42,62,14,3.5,0,0,,
+run_e98eb3,2026-03-16T10:12:41.881684,cdp,outlier_analyst,"
+## CDP STEP: outlier_detection
+
+### CONTEXT
+Outlier handling has model-specific implications:
+- Tree-based models (RF, XGBoost) are robust to outliers — clipping may destroy signal.
+- Linear models (LR, SVM) are sensitive — outliers must be handled.
+- Fraud/anomaly datasets: outliers ARE the signal — never drop them blindly.
+- Always check if extreme values are domain-valid (e.g., salary of $500k is real).
+
+### GUARANTEES
+- Missing values have been handled in the previous step.
+- Column is numeric (type inference confirmed this).
+
+### CONTRACT
+1. Identify outlier boundaries using IQR (Q1 - 1.5×IQR, Q3 + 1.5×IQR)
+2. Count outlier rows and calculate percentage
+3. Recommend action: flag | clip | drop | keep_as_signal
+4. Justify the recommendation with domain reasoning
+
+### CONSTRAINTS
+- Do N","{""lower_bound"": 5000, ""upper_bound"": 115000, ""outlier_count"": 15, ""outlier_pct"": 2.9, ""recommended_action"": ""clip"", ""justification"": ""Outliers are 2.9% of data — clipping preserves distribution without data loss. No fraud context detected."", ""backtrack"": false}",263.91,376,65,4.1,0,0,,
+run_e98eb3,2026-03-16T10:12:42.206527,baseline,feature_engineer,"
+You are a feature engineering agent.
+Dataset columns: {'age': 'float64', 'salary': 'float64', 'bonus': 'float64', 'department': 'str', 'dept_code': 'str', 'hire_date': 'str', 'employee_id': 'str', 'notes': 'str', 'promoted': 'int64', 'constant_col': 'float64', 'mystery_col': 'float64'}
+Suggest useful new features I can create.
+","[{""feature"": ""hire_date_year"", ""transform"": ""dt.year""}]",323.12,82,13,3.0,0,0,,
+run_e98eb3,2026-03-16T10:12:42.453452,cdp,feature_engineer,"
+## CDP STEP: feature_engineering
+
+### CONTEXT
+Feature engineering transforms raw columns into model-ready signals.
+Common ML mistakes in this step:
+- One-hot encoding high-cardinality columns (>50 unique values) explodes feature space.
+- Applying log transforms to columns containing zeros causes -inf values.
+- Creating interaction terms without normalisation introduces scale bias.
+- datetime decomposition without timezone awareness creates ghost features.
+
+### GUARANTEES
+- Outliers have been handled.
+- Column types have been cast correctly.
+- Missing values are resolved.
+
+### CONTRACT
+For each column, propose 0–3 engineered features.
+For each proposal:
+1. feature_name: name of the new feature
+2. transformation: exact operation (e.g., log1p, dt.month, label_encode)
+3. prerequisite_check: w","[{""col_name"": ""hire_date"", ""feature_name"": ""hire_date_year"", ""transformation"": ""dt.year"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""hire_date"", ""feature_name"": ""hire_date_is_weekend"", ""transformation"": ""dt.dayofweek >= 5"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""department"", ""feature_name"": ""department_encoded"", ""transformation"": ""label_encode"", ""prerequisite_check"": ""cardinality < 50"", ""risk"": ""none""}]",245.81,449,121,3.3,0,0,,
+run_e98eb3,2026-03-16T10:12:42.641493,baseline,feature_selector,"
+You are a feature selection agent.
+Features available: ['age', 'salary', 'bonus', 'department', 'dept_code', 'hire_date', 'employee_id', 'notes', 'promoted', 'constant_col', 'mystery_col']
+Target variable: promoted
+Which features should I keep?
+","{""keep"": [""age"", ""salary""], ""drop"": [""constant_col""]}",186.39,61,13,3.0,0,0,,
+run_e98eb3,2026-03-16T10:12:42.999228,cdp,feature_selector,"
+## CDP STEP: feature_selection
+
+### CONTEXT
+Feature selection prevents overfitting and reduces noise.
+Critical ML mistakes:
+- Dropping features based on solo correlation with target misses joint information.
+- Removing features before train/test split causes leakage.
+- Keeping ID columns in model input guarantees overfitting.
+- Variance threshold removal must exclude the target column.
+
+### GUARANTEES
+- Feature engineering is complete.
+- The target column is identified and must be preserved.
+- No train/test split has been applied yet.
+
+### CONTRACT
+1. Apply variance threshold — flag columns with variance < 0.01
+2. Apply correlation filter — flag one of each pair with correlation > 0.95
+3. Flag ID columns for removal
+4. Declare final keep/drop decision per column with justification
+
+### CO","{""keep"": [""age"", ""salary"", ""department_encoded"", ""hire_date_year"", ""hire_date_month""], ""drop"": [""constant_col"", ""mystery_col"", ""employee_id"", ""dept_code""], ""flagged"": [""notes""], ""backtrack"": false, ""justification_per_col"": {""constant_col"": ""zero variance"", ""employee_id"": ""ID column — overfitting risk"", ""dept_code"": ""high correlation with department_encoded""}}",356.45,388,90,3.6,0,0,,
+run_e98eb3,2026-03-16T10:12:43.330125,baseline,pipeline_validator,"
+You are a pipeline validation agent.
+Pipeline steps completed: ['intake', 'quality', 'types', 'missing', 'outliers', 'features', 'selection']
+Final dataset shape: [520, 11]
+Is the pipeline ready for model training?
+","{""status"": ""PASSED"", ""issues"": []}",330.16,54,8,3.0,0,0,,
+run_e98eb3,2026-03-16T10:12:43.650285,cdp,pipeline_validator,"
+## CDP STEP: pipeline_validation
+
+### CONTEXT
+This is the final gate before model training.
+A pipeline that ""ran without errors"" is not necessarily correct.
+This step must actively verify correctness, not just confirm completion.
+Known failure patterns to check:
+- Residual nulls (imputation missed a column)
+- Data leakage (scaler or encoder fit on full dataset)
+- Feature count explosion (one-hot on high-cardinality col was applied)
+- Target column corrupted or missing
+- Row count dropped >40% (overly aggressive outlier removal)
+
+### GUARANTEES
+- All prior steps have been executed and their reports are available.
+- The session_id maps to a valid stored dataset.
+
+### CONTRACT
+1. Verify zero residual nulls (or explain and accept exceptions)
+2. Verify row count loss is < 40% from original
+3. ","{""status"": ""PASSED_WITH_WARNINGS"", ""backtrack"": false, ""issues"": [], ""warnings"": [""notes column flagged — low information density""], ""readiness_score"": 87}",319.38,487,38,3.9,0,0,,
+run_cf644b,2026-03-16T10:12:44.014385,baseline,quality_auditor,"
+You are a data quality agent.
+Given this dataset summary: {""rows"": 520, ""columns"": 11, ""column_names"": [""age"", ""salary"", ""bonus"", ""department"", ""dept_code"", ""hire_date"", ""employee_id"", ""notes"", ""promoted"", ""constant_col"", ""mystery_col""], ""null_pct"": {""age"": 5.96, ""salary"": 0.0, ""bonus"": 43.27, ""department"": 5.19, ""dept_code"": 6.35, ""hire_date"": 0.0, ""employee_id"": 0.0, ""notes"": 16.35, ""promoted"": 0.0, ""constant_col"": 0.0, ""mystery_col"": 88.27}, ""duplicate_rows"": 20}
+Check for missing values, duplicates, and data issues.
+Report what you find.
+","{""null_counts"": {""salary"": 12}, ""quality"": ""FAIR"", ""summary"": ""Some nulls found.""}",358.0,137,20,3.0,0,0,,
+run_cf644b,2026-03-16T10:12:44.357990,cdp,quality_auditor,"
+## CDP STEP: data_quality_audit
+
+### CONTEXT
+You are auditing a raw dataset before ML preprocessing.
+Silent failures in this step cascade into all downstream agents.
+A ""clean-looking"" dataset with hidden issues is MORE dangerous than an obvious error.
+
+### GUARANTEES (developer-asserted — trust these)
+- The dataset has already been loaded and is in tabular form.
+- Row count and column names are accurate.
+
+### CONTRACT
+You must produce a structured audit covering:
+1. Null counts and null % per column
+2. Duplicate row count
+3. Zero-variance or near-constant columns
+4. Columns with >50% missing (flag for potential drop)
+5. An overall quality rating: GOOD | FAIR | POOR
+6. A plain-English risk summary (2–3 sentences)
+
+### CONSTRAINTS
+- Do NOT impute or modify data in this step — audit only.
+- ","{""null_counts"": {""salary"": 12, ""bonus"": 225}, ""null_pct"": {""bonus"": 45.0}, ""duplicate_rows"": 20, ""zero_variance_cols"": [""constant_col""], ""high_null_cols"": [""mystery_col""], ""quality_rating"": ""FAIR"", ""risk_summary"": ""Two columns have significant null rates. One column is near-constant and should be dropped. Duplicate rows detected — deduplicate before modelling."", ""backtrack"": false}",342.06,446,96,4.1,0,0,,
+run_cf644b,2026-03-16T10:12:44.588620,baseline,type_inference,"
+You are a data type inference agent.
+Given these columns and sample values: {""age"": [56.0, 69.0, 46.0, 32.0, 60.0], ""salary"": [75861.35263293564, 60770.41289219453, 73086.70736490679, 75992.97816146608, 45614.87855359832], ""bonus"": [3624.9130973208175, 4620.011225635241, 5896.780587231723, 5018.583505061825, 5278.685187242529], ""department"": [""Engineering"", ""Engineering"", ""Engineering"", ""Engineering"", ""Engineering""], ""dept_code"": [""HR"", ""HR"", ""ENG"", ""HR"", ""HR""], ""hire_date"": [""2015-01-01"", ""2015-01-02"", ""2015-01-03"", ""2015-01-04"", ""2015-01-05""], ""employee_id"": [""EMP00000"", ""EMP00001"", ""EMP00002"", ""EMP00003"", ""EMP00004""], ""notes"": [""Needs improvement"", ""Needs improvement"", ""Good performer"", ""Good performer"", ""Needs improvement""], ""promoted"": [0, 1, 1, 0, 1], ""constant_col"": [1.0, 1.0, 1.0,","{""age"": ""numeric"", ""salary"": ""numeric"", ""department"": ""categorical""}",229.41,251,17,3.0,0,0,,
+run_cf644b,2026-03-16T10:12:44.854538,cdp,type_inference,"
+## CDP STEP: type_inference
+
+### CONTEXT
+Correct semantic typing is the foundation of every downstream decision.
+A datetime column typed as text will not be decomposed.
+A categorical column typed as numeric will be scaled instead of encoded.
+These are silent failures — the pipeline continues but produces wrong features.
+
+### GUARANTEES
+- Column names and up to 10 sample values per column are provided.
+- The dataset passed quality audit (no backtrack was triggered).
+
+### CONTRACT
+For each column, declare:
+1. pandas_dtype: the current raw dtype
+2. semantic_type: one of [numeric | categorical | datetime | text | id | boolean]
+3. recommended_cast: the pandas dtype to cast to
+4. risk_note: any concern about misclassification (or ""none"")
+
+### CONSTRAINTS
+- A column with >95% unique values is an","{""age"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""none""}, ""salary"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""outliers detected in sample""}, ""department"": {""semantic_type"": ""categorical"", ""recommended_cast"": ""category"", ""risk_note"": ""none""}, ""employee_id"": {""semantic_type"": ""id"", ""recommended_cast"": ""object"", ""risk_note"": ""High cardinality — exclude from modelling""}, ""backtrack"": false}",264.6,573,113,3.6,0,0,,
+run_cf644b,2026-03-16T10:12:45.065675,baseline,missing_strategy,"
+You are a data cleaning agent.
+Column: ""salary"", type: ""numeric"", missing: 0%.
+What imputation strategy should I use?
+","{""strategy"": ""mean"", ""justification"": ""It is numeric.""}",210.27,29,13,3.5,0,0,,
+run_cf644b,2026-03-16T10:12:45.277755,cdp,missing_strategy,"
+## CDP STEP: missing_value_treatment
+
+### CONTEXT
+Missing value imputation is the most common source of silent ML failures.
+The wrong strategy distorts distributions, inflates correlations, or leaks information.
+Specific rules apply:
+- Mean imputation on skewed distributions inflates central tendency.
+- Mean/median on fraud/anomaly targets distorts the minority class signal.
+- Mode imputation on high-cardinality text columns is meaningless.
+- Columns >70% missing should be dropped, not imputed.
+
+### GUARANTEES
+- Column semantic type has been confirmed by the type inference step.
+- The missing percentage provided is accurate.
+
+### CONTRACT
+Declare the imputation strategy for this column and justify it.
+Valid strategies: mean | median | mode | constant | knn_flag | drop
+
+### CONSTRAINTS
+- N","{""strategy"": ""median"", ""justification"": ""Numeric column — median is robust to the salary outliers present. Mean would be skewed by the $500k outlier values."", ""backtrack"": false, ""risk_level"": ""low""}",211.17,408,49,4.5,0,0,,
+run_cf644b,2026-03-16T10:12:45.621596,baseline,outlier_analyst,"
+You are an outlier detection agent.
+Column: ""salary"", values: {'mean': np.float64(70824.8249819922), 'std': np.float64(88861.37325708602), 'min': np.float64(-10000.0), 'max': np.float64(999999.0)}
+Identify outliers and suggest how to handle them.
+","{""action"": ""clip"", ""justification"": ""Some outliers found.""}",342.29,62,14,3.5,0,0,,
+run_cf644b,2026-03-16T10:12:46.009495,cdp,outlier_analyst,"
+## CDP STEP: outlier_detection
+
+### CONTEXT
+Outlier handling has model-specific implications:
+- Tree-based models (RF, XGBoost) are robust to outliers — clipping may destroy signal.
+- Linear models (LR, SVM) are sensitive — outliers must be handled.
+- Fraud/anomaly datasets: outliers ARE the signal — never drop them blindly.
+- Always check if extreme values are domain-valid (e.g., salary of $500k is real).
+
+### GUARANTEES
+- Missing values have been handled in the previous step.
+- Column is numeric (type inference confirmed this).
+
+### CONTRACT
+1. Identify outlier boundaries using IQR (Q1 - 1.5×IQR, Q3 + 1.5×IQR)
+2. Count outlier rows and calculate percentage
+3. Recommend action: flag | clip | drop | keep_as_signal
+4. Justify the recommendation with domain reasoning
+
+### CONSTRAINTS
+- Do N","{""lower_bound"": 5000, ""upper_bound"": 115000, ""outlier_count"": 15, ""outlier_pct"": 2.9, ""recommended_action"": ""clip"", ""justification"": ""Outliers are 2.9% of data — clipping preserves distribution without data loss. No fraud context detected."", ""backtrack"": false}",386.06,376,65,4.1,0,0,,
+run_cf644b,2026-03-16T10:12:46.422452,baseline,feature_engineer,"
+You are a feature engineering agent.
+Dataset columns: {'age': 'float64', 'salary': 'float64', 'bonus': 'float64', 'department': 'str', 'dept_code': 'str', 'hire_date': 'str', 'employee_id': 'str', 'notes': 'str', 'promoted': 'int64', 'constant_col': 'float64', 'mystery_col': 'float64'}
+Suggest useful new features I can create.
+","[{""feature"": ""hire_date_year"", ""transform"": ""dt.year""}]",411.06,82,13,3.0,0,0,,
+run_cf644b,2026-03-16T10:12:46.754358,cdp,feature_engineer,"
+## CDP STEP: feature_engineering
+
+### CONTEXT
+Feature engineering transforms raw columns into model-ready signals.
+Common ML mistakes in this step:
+- One-hot encoding high-cardinality columns (>50 unique values) explodes feature space.
+- Applying log transforms to columns containing zeros causes -inf values.
+- Creating interaction terms without normalisation introduces scale bias.
+- datetime decomposition without timezone awareness creates ghost features.
+
+### GUARANTEES
+- Outliers have been handled.
+- Column types have been cast correctly.
+- Missing values are resolved.
+
+### CONTRACT
+For each column, propose 0–3 engineered features.
+For each proposal:
+1. feature_name: name of the new feature
+2. transformation: exact operation (e.g., log1p, dt.month, label_encode)
+3. prerequisite_check: w","[{""col_name"": ""hire_date"", ""feature_name"": ""hire_date_year"", ""transformation"": ""dt.year"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""hire_date"", ""feature_name"": ""hire_date_is_weekend"", ""transformation"": ""dt.dayofweek >= 5"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""department"", ""feature_name"": ""department_encoded"", ""transformation"": ""label_encode"", ""prerequisite_check"": ""cardinality < 50"", ""risk"": ""none""}]",330.8,449,121,3.3,0,0,,
+run_cf644b,2026-03-16T10:12:46.979411,baseline,feature_selector,"
+You are a feature selection agent.
+Features available: ['age', 'salary', 'bonus', 'department', 'dept_code', 'hire_date', 'employee_id', 'notes', 'promoted', 'constant_col', 'mystery_col']
+Target variable: promoted
+Which features should I keep?
+","{""keep"": [""age"", ""salary""], ""drop"": [""constant_col""]}",224.18,61,13,3.0,0,0,,
+run_cf644b,2026-03-16T10:12:47.186038,cdp,feature_selector,"
+## CDP STEP: feature_selection
+
+### CONTEXT
+Feature selection prevents overfitting and reduces noise.
+Critical ML mistakes:
+- Dropping features based on solo correlation with target misses joint information.
+- Removing features before train/test split causes leakage.
+- Keeping ID columns in model input guarantees overfitting.
+- Variance threshold removal must exclude the target column.
+
+### GUARANTEES
+- Feature engineering is complete.
+- The target column is identified and must be preserved.
+- No train/test split has been applied yet.
+
+### CONTRACT
+1. Apply variance threshold — flag columns with variance < 0.01
+2. Apply correlation filter — flag one of each pair with correlation > 0.95
+3. Flag ID columns for removal
+4. Declare final keep/drop decision per column with justification
+
+### CO","{""keep"": [""age"", ""salary"", ""department_encoded"", ""hire_date_year"", ""hire_date_month""], ""drop"": [""constant_col"", ""mystery_col"", ""employee_id"", ""dept_code""], ""flagged"": [""notes""], ""backtrack"": false, ""justification_per_col"": {""constant_col"": ""zero variance"", ""employee_id"": ""ID column — overfitting risk"", ""dept_code"": ""high correlation with department_encoded""}}",205.36,388,90,3.6,0,0,,
+run_cf644b,2026-03-16T10:12:47.561835,baseline,pipeline_validator,"
+You are a pipeline validation agent.
+Pipeline steps completed: ['intake', 'quality', 'types', 'missing', 'outliers', 'features', 'selection']
+Final dataset shape: [520, 11]
+Is the pipeline ready for model training?
+","{""status"": ""PASSED"", ""issues"": []}",375.08,54,8,3.0,0,0,,
+run_cf644b,2026-03-16T10:12:47.881416,cdp,pipeline_validator,"
+## CDP STEP: pipeline_validation
+
+### CONTEXT
+This is the final gate before model training.
+A pipeline that ""ran without errors"" is not necessarily correct.
+This step must actively verify correctness, not just confirm completion.
+Known failure patterns to check:
+- Residual nulls (imputation missed a column)
+- Data leakage (scaler or encoder fit on full dataset)
+- Feature count explosion (one-hot on high-cardinality col was applied)
+- Target column corrupted or missing
+- Row count dropped >40% (overly aggressive outlier removal)
+
+### GUARANTEES
+- All prior steps have been executed and their reports are available.
+- The session_id maps to a valid stored dataset.
+
+### CONTRACT
+1. Verify zero residual nulls (or explain and accept exceptions)
+2. Verify row count loss is < 40% from original
+3. ","{""status"": ""PASSED_WITH_WARNINGS"", ""backtrack"": false, ""issues"": [], ""warnings"": [""notes column flagged — low information density""], ""readiness_score"": 87}",318.9,487,38,3.9,0,0,,
+run_2b8b67,2026-03-23T20:07:50.085551,baseline,quality_auditor,"
+You are a data quality agent.
+Given this dataset summary: {""rows"": 520, ""columns"": 11, ""column_names"": [""age"", ""salary"", ""bonus"", ""department"", ""dept_code"", ""hire_date"", ""employee_id"", ""notes"", ""promoted"", ""constant_col"", ""mystery_col""], ""null_pct"": {""age"": 5.96, ""salary"": 0.0, ""bonus"": 43.27, ""department"": 5.19, ""dept_code"": 6.35, ""hire_date"": 0.0, ""employee_id"": 0.0, ""notes"": 16.35, ""promoted"": 0.0, ""constant_col"": 0.0, ""mystery_col"": 88.27}, ""duplicate_rows"": 20}
+Check for missing values, duplicates, and data issues.
+Report what you find.
+","{""null_counts"": {""salary"": 12}, ""quality"": ""FAIR"", ""summary"": ""Some nulls found.""}",376.92,137,20,3.0,0,0,,
+run_2b8b67,2026-03-23T20:07:50.454993,cdp,quality_auditor,"
+## CDP STEP: data_quality_audit
+
+### CONTEXT
+You are auditing a raw dataset before ML preprocessing.
+Silent failures in this step cascade into all downstream agents.
+A ""clean-looking"" dataset with hidden issues is MORE dangerous than an obvious error.
+
+### GUARANTEES (developer-asserted — trust these)
+- The dataset has already been loaded and is in tabular form.
+- Row count and column names are accurate.
+
+### CONTRACT
+You must produce a structured audit covering:
+1. Null counts and null % per column
+2. Duplicate row count
+3. Zero-variance or near-constant columns
+4. Columns with >50% missing (flag for potential drop)
+5. An overall quality rating: GOOD | FAIR | POOR
+6. A plain-English risk summary (2–3 sentences)
+
+### CONSTRAINTS
+- Do NOT impute or modify data in this step — audit only.
+- ","{""null_counts"": {""salary"": 12, ""bonus"": 225}, ""null_pct"": {""bonus"": 45.0}, ""duplicate_rows"": 20, ""zero_variance_cols"": [""constant_col""], ""high_null_cols"": [""mystery_col""], ""quality_rating"": ""FAIR"", ""risk_summary"": ""Two columns have significant null rates. One column is near-constant and should be dropped. Duplicate rows detected — deduplicate before modelling."", ""backtrack"": false}",362.41,446,96,4.1,0,0,,
+run_2b8b67,2026-03-23T20:07:50.648936,baseline,type_inference,"
+You are a data type inference agent.
+Given these columns and sample values: {""age"": [56.0, 69.0, 46.0, 32.0, 60.0], ""salary"": [75861.35263293564, 60770.41289219453, 73086.70736490679, 75992.97816146608, 45614.87855359832], ""bonus"": [3624.9130973208175, 4620.011225635241, 5896.780587231723, 5018.583505061825, 5278.685187242529], ""department"": [""Engineering"", ""Engineering"", ""Engineering"", ""Engineering"", ""Engineering""], ""dept_code"": [""HR"", ""HR"", ""ENG"", ""HR"", ""HR""], ""hire_date"": [""2015-01-01"", ""2015-01-02"", ""2015-01-03"", ""2015-01-04"", ""2015-01-05""], ""employee_id"": [""EMP00000"", ""EMP00001"", ""EMP00002"", ""EMP00003"", ""EMP00004""], ""notes"": [""Needs improvement"", ""Needs improvement"", ""Good performer"", ""Good performer"", ""Needs improvement""], ""promoted"": [0, 1, 1, 0, 1], ""constant_col"": [1.0, 1.0, 1.0,","{""age"": ""numeric"", ""salary"": ""numeric"", ""department"": ""categorical""}",191.7,251,17,3.0,0,0,,
+run_2b8b67,2026-03-23T20:07:51.032907,cdp,type_inference,"
+## CDP STEP: type_inference
+
+### CONTEXT
+Correct semantic typing is the foundation of every downstream decision.
+A datetime column typed as text will not be decomposed.
+A categorical column typed as numeric will be scaled instead of encoded.
+These are silent failures — the pipeline continues but produces wrong features.
+
+### GUARANTEES
+- Column names and up to 10 sample values per column are provided.
+- The dataset passed quality audit (no backtrack was triggered).
+
+### CONTRACT
+For each column, declare:
+1. pandas_dtype: the current raw dtype
+2. semantic_type: one of [numeric | categorical | datetime | text | id | boolean]
+3. recommended_cast: the pandas dtype to cast to
+4. risk_note: any concern about misclassification (or ""none"")
+
+### CONSTRAINTS
+- A column with >95% unique values is an","{""age"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""none""}, ""salary"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""outliers detected in sample""}, ""department"": {""semantic_type"": ""categorical"", ""recommended_cast"": ""category"", ""risk_note"": ""none""}, ""employee_id"": {""semantic_type"": ""id"", ""recommended_cast"": ""object"", ""risk_note"": ""High cardinality — exclude from modelling""}, ""backtrack"": false}",382.49,573,113,3.6,0,0,,
+run_2b8b67,2026-03-23T20:07:51.320522,baseline,missing_strategy,"
+You are a data cleaning agent.
+Column: ""salary"", type: ""numeric"", missing: 0%.
+What imputation strategy should I use?
+","{""strategy"": ""mean"", ""justification"": ""It is numeric.""}",285.13,29,13,3.5,0,0,,
+run_2b8b67,2026-03-23T20:07:51.583819,cdp,missing_strategy,"
+## CDP STEP: missing_value_treatment
+
+### CONTEXT
+Missing value imputation is the most common source of silent ML failures.
+The wrong strategy distorts distributions, inflates correlations, or leaks information.
+Specific rules apply:
+- Mean imputation on skewed distributions inflates central tendency.
+- Mean/median on fraud/anomaly targets distorts the minority class signal.
+- Mode imputation on high-cardinality text columns is meaningless.
+- Columns >70% missing should be dropped, not imputed.
+
+### GUARANTEES
+- Column semantic type has been confirmed by the type inference step.
+- The missing percentage provided is accurate.
+
+### CONTRACT
+Declare the imputation strategy for this column and justify it.
+Valid strategies: mean | median | mode | constant | knn_flag | drop
+
+### CONSTRAINTS
+- N","{""strategy"": ""median"", ""justification"": ""Numeric column — median is robust to the salary outliers present. Mean would be skewed by the $500k outlier values."", ""backtrack"": false, ""risk_level"": ""low""}",262.17,408,49,4.5,0,0,,
+run_2b8b67,2026-03-23T20:07:51.896373,baseline,outlier_analyst,"
+You are an outlier detection agent.
+Column: ""salary"", values: {'mean': np.float64(70824.8249819922), 'std': np.float64(88861.37325708602), 'min': np.float64(-10000.0), 'max': np.float64(999999.0)}
+Identify outliers and suggest how to handle them.
+","{""action"": ""clip"", ""justification"": ""Some outliers found.""}",311.15,62,14,3.5,0,0,,
+run_2b8b67,2026-03-23T20:07:52.100493,cdp,outlier_analyst,"
+## CDP STEP: outlier_detection
+
+### CONTEXT
+Outlier handling has model-specific implications:
+- Tree-based models (RF, XGBoost) are robust to outliers — clipping may destroy signal.
+- Linear models (LR, SVM) are sensitive — outliers must be handled.
+- Fraud/anomaly datasets: outliers ARE the signal — never drop them blindly.
+- Always check if extreme values are domain-valid (e.g., salary of $500k is real).
+
+### GUARANTEES
+- Missing values have been handled in the previous step.
+- Column is numeric (type inference confirmed this).
+
+### CONTRACT
+1. Identify outlier boundaries using IQR (Q1 - 1.5×IQR, Q3 + 1.5×IQR)
+2. Count outlier rows and calculate percentage
+3. Recommend action: flag | clip | drop | keep_as_signal
+4. Justify the recommendation with domain reasoning
+
+### CONSTRAINTS
+- Do N","{""lower_bound"": 5000, ""upper_bound"": 115000, ""outlier_count"": 15, ""outlier_pct"": 2.9, ""recommended_action"": ""clip"", ""justification"": ""Outliers are 2.9% of data — clipping preserves distribution without data loss. No fraud context detected."", ""backtrack"": false}",201.92,376,65,4.1,0,0,,
+run_2b8b67,2026-03-23T20:07:52.463489,baseline,feature_engineer,"
+You are a feature engineering agent.
+Dataset columns: {'age': 'float64', 'salary': 'float64', 'bonus': 'float64', 'department': 'str', 'dept_code': 'str', 'hire_date': 'str', 'employee_id': 'str', 'notes': 'str', 'promoted': 'int64', 'constant_col': 'float64', 'mystery_col': 'float64'}
+Suggest useful new features I can create.
+","[{""feature"": ""hire_date_year"", ""transform"": ""dt.year""}]",361.6,82,13,3.0,0,0,,
+run_2b8b67,2026-03-23T20:07:52.784787,cdp,feature_engineer,"
+## CDP STEP: feature_engineering
+
+### CONTEXT
+Feature engineering transforms raw columns into model-ready signals.
+Common ML mistakes in this step:
+- One-hot encoding high-cardinality columns (>50 unique values) explodes feature space.
+- Applying log transforms to columns containing zeros causes -inf values.
+- Creating interaction terms without normalisation introduces scale bias.
+- datetime decomposition without timezone awareness creates ghost features.
+
+### GUARANTEES
+- Outliers have been handled.
+- Column types have been cast correctly.
+- Missing values are resolved.
+
+### CONTRACT
+For each column, propose 0–3 engineered features.
+For each proposal:
+1. feature_name: name of the new feature
+2. transformation: exact operation (e.g., log1p, dt.month, label_encode)
+3. prerequisite_check: w","[{""col_name"": ""hire_date"", ""feature_name"": ""hire_date_year"", ""transformation"": ""dt.year"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""hire_date"", ""feature_name"": ""hire_date_is_weekend"", ""transformation"": ""dt.dayofweek >= 5"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""department"", ""feature_name"": ""department_encoded"", ""transformation"": ""label_encode"", ""prerequisite_check"": ""cardinality < 50"", ""risk"": ""none""}]",319.78,449,121,3.3,0,0,,
+run_2b8b67,2026-03-23T20:07:53.011064,baseline,feature_selector,"
+You are a feature selection agent.
+Features available: ['age', 'salary', 'bonus', 'department', 'dept_code', 'hire_date', 'employee_id', 'notes', 'promoted', 'constant_col', 'mystery_col']
+Target variable: promoted
+Which features should I keep?
+","{""keep"": [""age"", ""salary""], ""drop"": [""constant_col""]}",224.78,61,13,3.0,0,0,,
+run_2b8b67,2026-03-23T20:07:53.238541,cdp,feature_selector,"
+## CDP STEP: feature_selection
+
+### CONTEXT
+Feature selection prevents overfitting and reduces noise.
+Critical ML mistakes:
+- Dropping features based on solo correlation with target misses joint information.
+- Removing features before train/test split causes leakage.
+- Keeping ID columns in model input guarantees overfitting.
+- Variance threshold removal must exclude the target column.
+
+### GUARANTEES
+- Feature engineering is complete.
+- The target column is identified and must be preserved.
+- No train/test split has been applied yet.
+
+### CONTRACT
+1. Apply variance threshold — flag columns with variance < 0.01
+2. Apply correlation filter — flag one of each pair with correlation > 0.95
+3. Flag ID columns for removal
+4. Declare final keep/drop decision per column with justification
+
+### CO","{""keep"": [""age"", ""salary"", ""department_encoded"", ""hire_date_year"", ""hire_date_month""], ""drop"": [""constant_col"", ""mystery_col"", ""employee_id"", ""dept_code""], ""flagged"": [""notes""], ""backtrack"": false, ""justification_per_col"": {""constant_col"": ""zero variance"", ""employee_id"": ""ID column — overfitting risk"", ""dept_code"": ""high correlation with department_encoded""}}",225.18,388,90,3.6,0,0,,
+run_2b8b67,2026-03-23T20:07:53.464747,baseline,pipeline_validator,"
+You are a pipeline validation agent.
+Pipeline steps completed: ['intake', 'quality', 'types', 'missing', 'outliers', 'features', 'selection']
+Final dataset shape: [520, 11]
+Is the pipeline ready for model training?
+","{""status"": ""PASSED"", ""issues"": []}",224.22,54,8,3.0,0,0,,
+run_2b8b67,2026-03-23T20:07:53.660012,cdp,pipeline_validator,"
+## CDP STEP: pipeline_validation
+
+### CONTEXT
+This is the final gate before model training.
+A pipeline that ""ran without errors"" is not necessarily correct.
+This step must actively verify correctness, not just confirm completion.
+Known failure patterns to check:
+- Residual nulls (imputation missed a column)
+- Data leakage (scaler or encoder fit on full dataset)
+- Feature count explosion (one-hot on high-cardinality col was applied)
+- Target column corrupted or missing
+- Row count dropped >40% (overly aggressive outlier removal)
+
+### GUARANTEES
+- All prior steps have been executed and their reports are available.
+- The session_id maps to a valid stored dataset.
+
+### CONTRACT
+1. Verify zero residual nulls (or explain and accept exceptions)
+2. Verify row count loss is < 40% from original
+3. ","{""status"": ""PASSED_WITH_WARNINGS"", ""backtrack"": false, ""issues"": [], ""warnings"": [""notes column flagged — low information density""], ""readiness_score"": 87}",193.68,487,38,3.9,0,0,,
+run_c09a9b,2026-03-29T19:22:11.798772,baseline,quality_auditor,"
+You are a data quality agent.
+Given this dataset summary: {""rows"": 520, ""columns"": 11, ""column_names"": [""age"", ""salary"", ""bonus"", ""department"", ""dept_code"", ""hire_date"", ""employee_id"", ""notes"", ""promoted"", ""constant_col"", ""mystery_col""], ""null_pct"": {""age"": 5.96, ""salary"": 0.0, ""bonus"": 43.27, ""department"": 5.19, ""dept_code"": 6.35, ""hire_date"": 0.0, ""employee_id"": 0.0, ""notes"": 16.35, ""promoted"": 0.0, ""constant_col"": 0.0, ""mystery_col"": 88.27}, ""duplicate_rows"": 20}
+Check for missing values, duplicates, and data issues.
+Report what you find.
+","{""null_counts"": {""salary"": 12}, ""quality"": ""FAIR"", ""summary"": ""Some nulls found.""}",376.92,137,20,3.0,0,0,,
+run_c09a9b,2026-03-29T19:22:12.166682,cdp,quality_auditor,"
+## CDP STEP: data_quality_audit
+
+### CONTEXT
+You are auditing a raw dataset before ML preprocessing.
+Silent failures in this step cascade into all downstream agents.
+A ""clean-looking"" dataset with hidden issues is MORE dangerous than an obvious error.
+
+### GUARANTEES (developer-asserted — trust these)
+- The dataset has already been loaded and is in tabular form.
+- Row count and column names are accurate.
+
+### CONTRACT
+You must produce a structured audit covering:
+1. Null counts and null % per column
+2. Duplicate row count
+3. Zero-variance or near-constant columns
+4. Columns with >50% missing (flag for potential drop)
+5. An overall quality rating: GOOD | FAIR | POOR
+6. A plain-English risk summary (2–3 sentences)
+
+### CONSTRAINTS
+- Do NOT impute or modify data in this step — audit only.
+- ","{""null_counts"": {""salary"": 12, ""bonus"": 225}, ""null_pct"": {""bonus"": 45.0}, ""duplicate_rows"": 20, ""zero_variance_cols"": [""constant_col""], ""high_null_cols"": [""mystery_col""], ""quality_rating"": ""FAIR"", ""risk_summary"": ""Two columns have significant null rates. One column is near-constant and should be dropped. Duplicate rows detected — deduplicate before modelling."", ""backtrack"": false}",362.41,446,96,4.1,0,0,,
+run_c09a9b,2026-03-29T19:22:12.359121,baseline,type_inference,"
+You are a data type inference agent.
+Given these columns and sample values: {""age"": [56.0, 69.0, 46.0, 32.0, 60.0], ""salary"": [75861.35263293564, 60770.41289219453, 73086.70736490679, 75992.97816146608, 45614.87855359832], ""bonus"": [3624.9130973208175, 4620.011225635241, 5896.780587231723, 5018.583505061825, 5278.685187242529], ""department"": [""Engineering"", ""Engineering"", ""Engineering"", ""Engineering"", ""Engineering""], ""dept_code"": [""HR"", ""HR"", ""ENG"", ""HR"", ""HR""], ""hire_date"": [""2015-01-01"", ""2015-01-02"", ""2015-01-03"", ""2015-01-04"", ""2015-01-05""], ""employee_id"": [""EMP00000"", ""EMP00001"", ""EMP00002"", ""EMP00003"", ""EMP00004""], ""notes"": [""Needs improvement"", ""Needs improvement"", ""Good performer"", ""Good performer"", ""Needs improvement""], ""promoted"": [0, 1, 1, 0, 1], ""constant_col"": [1.0, 1.0, 1.0,","{""age"": ""numeric"", ""salary"": ""numeric"", ""department"": ""categorical""}",191.7,251,17,3.0,0,0,,
+run_c09a9b,2026-03-29T19:22:12.742740,cdp,type_inference,"
+## CDP STEP: type_inference
+
+### CONTEXT
+Correct semantic typing is the foundation of every downstream decision.
+A datetime column typed as text will not be decomposed.
+A categorical column typed as numeric will be scaled instead of encoded.
+These are silent failures — the pipeline continues but produces wrong features.
+
+### GUARANTEES
+- Column names and up to 10 sample values per column are provided.
+- The dataset passed quality audit (no backtrack was triggered).
+
+### CONTRACT
+For each column, declare:
+1. pandas_dtype: the current raw dtype
+2. semantic_type: one of [numeric | categorical | datetime | text | id | boolean]
+3. recommended_cast: the pandas dtype to cast to
+4. risk_note: any concern about misclassification (or ""none"")
+
+### CONSTRAINTS
+- A column with >95% unique values is an","{""age"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""none""}, ""salary"": {""semantic_type"": ""numeric"", ""recommended_cast"": ""float64"", ""risk_note"": ""outliers detected in sample""}, ""department"": {""semantic_type"": ""categorical"", ""recommended_cast"": ""category"", ""risk_note"": ""none""}, ""employee_id"": {""semantic_type"": ""id"", ""recommended_cast"": ""object"", ""risk_note"": ""High cardinality — exclude from modelling""}, ""backtrack"": false}",382.49,573,113,3.6,0,0,,
+run_c09a9b,2026-03-29T19:22:13.029259,baseline,missing_strategy,"
+You are a data cleaning agent.
+Column: ""salary"", type: ""numeric"", missing: 0%.
+What imputation strategy should I use?
+","{""strategy"": ""mean"", ""justification"": ""It is numeric.""}",285.13,29,13,3.5,0,0,,
+run_c09a9b,2026-03-29T19:22:13.292152,cdp,missing_strategy,"
+## CDP STEP: missing_value_treatment
+
+### CONTEXT
+Missing value imputation is the most common source of silent ML failures.
+The wrong strategy distorts distributions, inflates correlations, or leaks information.
+Specific rules apply:
+- Mean imputation on skewed distributions inflates central tendency.
+- Mean/median on fraud/anomaly targets distorts the minority class signal.
+- Mode imputation on high-cardinality text columns is meaningless.
+- Columns >70% missing should be dropped, not imputed.
+
+### GUARANTEES
+- Column semantic type has been confirmed by the type inference step.
+- The missing percentage provided is accurate.
+
+### CONTRACT
+Declare the imputation strategy for this column and justify it.
+Valid strategies: mean | median | mode | constant | knn_flag | drop
+
+### CONSTRAINTS
+- N","{""strategy"": ""median"", ""justification"": ""Numeric column — median is robust to the salary outliers present. Mean would be skewed by the $500k outlier values."", ""backtrack"": false, ""risk_level"": ""low""}",262.17,408,49,4.5,0,0,,
+run_c09a9b,2026-03-29T19:22:13.604096,baseline,outlier_analyst,"
+You are an outlier detection agent.
+Column: ""salary"", values: {'mean': np.float64(70824.8249819922), 'std': np.float64(88861.37325708602), 'min': np.float64(-10000.0), 'max': np.float64(999999.0)}
+Identify outliers and suggest how to handle them.
+","{""action"": ""clip"", ""justification"": ""Some outliers found.""}",311.15,62,14,3.5,0,0,,
+run_c09a9b,2026-03-29T19:22:13.807815,cdp,outlier_analyst,"
+## CDP STEP: outlier_detection
+
+### CONTEXT
+Outlier handling has model-specific implications:
+- Tree-based models (RF, XGBoost) are robust to outliers — clipping may destroy signal.
+- Linear models (LR, SVM) are sensitive — outliers must be handled.
+- Fraud/anomaly datasets: outliers ARE the signal — never drop them blindly.
+- Always check if extreme values are domain-valid (e.g., salary of $500k is real).
+
+### GUARANTEES
+- Missing values have been handled in the previous step.
+- Column is numeric (type inference confirmed this).
+
+### CONTRACT
+1. Identify outlier boundaries using IQR (Q1 - 1.5×IQR, Q3 + 1.5×IQR)
+2. Count outlier rows and calculate percentage
+3. Recommend action: flag | clip | drop | keep_as_signal
+4. Justify the recommendation with domain reasoning
+
+### CONSTRAINTS
+- Do N","{""lower_bound"": 5000, ""upper_bound"": 115000, ""outlier_count"": 15, ""outlier_pct"": 2.9, ""recommended_action"": ""clip"", ""justification"": ""Outliers are 2.9% of data — clipping preserves distribution without data loss. No fraud context detected."", ""backtrack"": false}",201.92,376,65,4.1,0,0,,
+run_c09a9b,2026-03-29T19:22:14.170680,baseline,feature_engineer,"
+You are a feature engineering agent.
+Dataset columns: {'age': 'float64', 'salary': 'float64', 'bonus': 'float64', 'department': 'str', 'dept_code': 'str', 'hire_date': 'str', 'employee_id': 'str', 'notes': 'str', 'promoted': 'int64', 'constant_col': 'float64', 'mystery_col': 'float64'}
+Suggest useful new features I can create.
+","[{""feature"": ""hire_date_year"", ""transform"": ""dt.year""}]",361.6,82,13,3.0,0,0,,
+run_c09a9b,2026-03-29T19:22:14.491862,cdp,feature_engineer,"
+## CDP STEP: feature_engineering
+
+### CONTEXT
+Feature engineering transforms raw columns into model-ready signals.
+Common ML mistakes in this step:
+- One-hot encoding high-cardinality columns (>50 unique values) explodes feature space.
+- Applying log transforms to columns containing zeros causes -inf values.
+- Creating interaction terms without normalisation introduces scale bias.
+- datetime decomposition without timezone awareness creates ghost features.
+
+### GUARANTEES
+- Outliers have been handled.
+- Column types have been cast correctly.
+- Missing values are resolved.
+
+### CONTRACT
+For each column, propose 0–3 engineered features.
+For each proposal:
+1. feature_name: name of the new feature
+2. transformation: exact operation (e.g., log1p, dt.month, label_encode)
+3. prerequisite_check: w","[{""col_name"": ""hire_date"", ""feature_name"": ""hire_date_year"", ""transformation"": ""dt.year"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""hire_date"", ""feature_name"": ""hire_date_is_weekend"", ""transformation"": ""dt.dayofweek >= 5"", ""prerequisite_check"": ""column cast to datetime"", ""risk"": ""none""}, {""col_name"": ""department"", ""feature_name"": ""department_encoded"", ""transformation"": ""label_encode"", ""prerequisite_check"": ""cardinality < 50"", ""risk"": ""none""}]",319.78,449,121,3.3,0,0,,
+run_c09a9b,2026-03-29T19:22:14.717871,baseline,feature_selector,"
+You are a feature selection agent.
+Features available: ['age', 'salary', 'bonus', 'department', 'dept_code', 'hire_date', 'employee_id', 'notes', 'promoted', 'constant_col', 'mystery_col']
+Target variable: promoted
+Which features should I keep?
+","{""keep"": [""age"", ""salary""], ""drop"": [""constant_col""]}",224.78,61,13,3.0,0,0,,
+run_c09a9b,2026-03-29T19:22:14.944595,cdp,feature_selector,"
+## CDP STEP: feature_selection
+
+### CONTEXT
+Feature selection prevents overfitting and reduces noise.
+Critical ML mistakes:
+- Dropping features based on solo correlation with target misses joint information.
+- Removing features before train/test split causes leakage.
+- Keeping ID columns in model input guarantees overfitting.
+- Variance threshold removal must exclude the target column.
+
+### GUARANTEES
+- Feature engineering is complete.
+- The target column is identified and must be preserved.
+- No train/test split has been applied yet.
+
+### CONTRACT
+1. Apply variance threshold — flag columns with variance < 0.01
+2. Apply correlation filter — flag one of each pair with correlation > 0.95
+3. Flag ID columns for removal
+4. Declare final keep/drop decision per column with justification
+
+### CO","{""keep"": [""age"", ""salary"", ""department_encoded"", ""hire_date_year"", ""hire_date_month""], ""drop"": [""constant_col"", ""mystery_col"", ""employee_id"", ""dept_code""], ""flagged"": [""notes""], ""backtrack"": false, ""justification_per_col"": {""constant_col"": ""zero variance"", ""employee_id"": ""ID column — overfitting risk"", ""dept_code"": ""high correlation with department_encoded""}}",225.18,388,90,3.6,0,0,,
+run_c09a9b,2026-03-29T19:22:15.169924,baseline,pipeline_validator,"
+You are a pipeline validation agent.
+Pipeline steps completed: ['intake', 'quality', 'types', 'missing', 'outliers', 'features', 'selection']
+Final dataset shape: [520, 11]
+Is the pipeline ready for model training?
+","{""status"": ""PASSED"", ""issues"": []}",224.22,54,8,3.0,0,0,,
+run_c09a9b,2026-03-29T19:22:15.364410,cdp,pipeline_validator,"
+## CDP STEP: pipeline_validation
+
+### CONTEXT
+This is the final gate before model training.
+A pipeline that ""ran without errors"" is not necessarily correct.
+This step must actively verify correctness, not just confirm completion.
+Known failure patterns to check:
+- Residual nulls (imputation missed a column)
+- Data leakage (scaler or encoder fit on full dataset)
+- Feature count explosion (one-hot on high-cardinality col was applied)
+- Target column corrupted or missing
+- Row count dropped >40% (overly aggressive outlier removal)
+
+### GUARANTEES
+- All prior steps have been executed and their reports are available.
+- The session_id maps to a valid stored dataset.
+
+### CONTRACT
+1. Verify zero residual nulls (or explain and accept exceptions)
+2. Verify row count loss is < 40% from original
+3. ","{""status"": ""PASSED_WITH_WARNINGS"", ""backtrack"": false, ""issues"": [], ""warnings"": [""notes column flagged — low information density""], ""readiness_score"": 87}",193.68,487,38,3.9,0,0,,
