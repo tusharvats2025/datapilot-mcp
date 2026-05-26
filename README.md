@@ -100,7 +100,7 @@ OUTPUT: 520 rows × 9 columns · status: PASSED
 
 ```bash
 # 1. Clone
-git clone https://github.com/yourusername/datapilot-mcp
+git clone https://github.com/tusharvats2025/datapilot-mcp
 cd datapilot-mcp
 
 # 2. Install Python dependencies
